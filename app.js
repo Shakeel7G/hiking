@@ -4,7 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import cors from 'cors';
 import dotenv from 'dotenv';
-
+import db from './db.js';
 // Routes
 import trailRoutes from './routes/trailRoutes.js';
 import hikesRoutes from './routes/hikes.js';
@@ -22,7 +22,7 @@ const app = express();
 
 // Middleware
 app.use(express.json());
-app.use(cors());
+app.use(cors({ origin: '*' }))
 
 // Serve static files (images)
 app.use('/images', express.static(path.join(__dirname, 'public', 'images')));
