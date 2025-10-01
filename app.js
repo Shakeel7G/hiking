@@ -33,10 +33,16 @@ app.get("/", (req, res) => {
 });
 
 // Test route
-app.get("/test", (req, res) => {
-  res.send("Server is working!");
-});
+app.get('/test', (req, res) => res.send('Server OK'));
 
+app.get('/test-db', async (req, res) => {
+  try {
+    const [rows] = await db.query('SELECT 1+1 AS result');
+    res.json({ result: rows[0].result });
+  } catch (err) {
+    res.status(500).json({ message: err.message, code: err.code });
+  }
+});
 // API Routes (all prefixed with /api)
 app.use('/api/trails', trailRoutes);      // e.g., /api/trails
 app.use('/api/hikes', hikesRoutes);       // e.g., /api/hikes
