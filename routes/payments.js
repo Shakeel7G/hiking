@@ -1,69 +1,79 @@
-import express from "express";
-import db from "../config/db.js";
-import isAuthenticated from "../middlewares/auth.js";
+import express from 'express';
+import db from '../config/db.js';
+import verifyToken from '../middleware/verifyToken.js';
+import verifyAdmin from '../middleware/verifyAdmin.js';
 
 const router = express.Router();
 
-// Create Payment
-router.post("/", isAuthenticated, async (req, res) => {
+// GET all payments (admin only)
+router.get('/', verifyToken, verifyAdmin, async (req, res) => {
   try {
-    const { booking_id, user_id, amount, payment_method } = req.body;
-
-    if (!booking_id || !user_id || !amount || !payment_method) {
-      return res.status(400).json({ message: "Missing required fields" });
-    }
-
-    // Verify the user is authorized to make this payment
-    if (req.user.id !== user_id && req.user.role !== 'admin') {
-      return res.status(403).json({ message: "Unauthorized" });
-    }
-
-    const [result] = await db.query(
-      `INSERT INTO payments (booking_id, user_id, amount, payment_method, payment_status)
-       VALUES (?, ?, ?, ?, ?)`,
-      [booking_id, user_id, amount, payment_method, "success"]
-    );
-
-    // Update booking status to 'paid'
-    await db.query(
-      'UPDATE bookings SET status = ? WHERE id = ?',
-      ['paid', booking_id]
-    );
-
-    res.status(201).json({
-      message: "Payment recorded successfully",
-      payment_id: result.insertId,
-    });
+    const result = await db.query('SELECT * FROM payments ORDER BY id DESC');
+    res.json(result.rows);
   } catch (err) {
-    console.error("Payment Error:", err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: err.message });
   }
 });
 
-// Get payment history for a user
-router.get("/user/:user_id", isAuthenticated, async (req, res) => {
+// GET payment by ID
+router.get('/:id', verifyToken, async (req, res) => {
   try {
-    const { user_id } = req.params;
-    
-    // Verify the user is authorized to view these payments
-    if (req.user.id !== parseInt(user_id) && req.user.role !== 'admin') {
-      return res.status(403).json({ message: "Unauthorized" });
-    }
+    const { id } = req.params;
+    const result = await db.query('SELECT * FROM payments WHERE id=$1', [id]);
+    if (!result.rows.length) return res.status(404).json({ message: 'Payment not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
 
-    const [rows] = await db.query(
-      `SELECT p.*, b.trail_id, t.title as trail_name
-       FROM payments p
-       JOIN bookings b ON p.booking_id = b.id
-       JOIN trails t ON b.trail_id = t.id
-       WHERE p.user_id = ?
-       ORDER BY p.created_at DESC`,
-      [user_id]
+// POST new payment
+router.post('/', verifyToken, async (req, res) => {
+  try {
+    const { booking_id, amount, payment_method, status } = req.body;
+
+    const result = await db.query(
+      `INSERT INTO payments (booking_id, amount, payment_method, status)
+       VALUES ($1, $2, $3, $4)
+       RETURNING *`,
+      [booking_id, amount, payment_method, status]
     );
 
-    res.json(rows);
+    res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error("Get payments error:", err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// UPDATE payment
+router.put('/:id', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { booking_id, amount, payment_method, status } = req.body;
+
+    const result = await db.query(
+      `UPDATE payments 
+       SET booking_id=$1, amount=$2, payment_method=$3, status=$4
+       WHERE id=$5 RETURNING *`,
+      [booking_id, amount, payment_method, status, id]
+    );
+
+    if (!result.rows.length) return res.status(404).json({ message: 'Payment not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// DELETE payment
+router.delete('/:id', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await db.query('DELETE FROM payments WHERE id=$1 RETURNING *', [id]);
+    if (!result.rows.length) return res.status(404).json({ message: 'Payment not found' });
+    res.json({ message: 'Payment deleted', payment: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 });
 
