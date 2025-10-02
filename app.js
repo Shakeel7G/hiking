@@ -4,7 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import db from './db.js';
+import db from './config/db.js';
 // Routes
 import trailRoutes from './routes/trailRoutes.js';
 import hikesRoutes from './routes/hikes.js';
