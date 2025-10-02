@@ -1,12 +1,10 @@
 import express from 'express';
 import db from '../config/db.js';
-import verifyToken from '../middleware/verifyToken.js';
-import verifyAdmin from '../middleware/verifyAdmin.js';
 
 const router = express.Router();
 
-// GET all users (admin only)
-router.get('/users', verifyToken, verifyAdmin, async (req, res) => {
+// GET all users
+router.get('/users', async (req, res) => {
   try {
     const result = await db.query('SELECT * FROM users ORDER BY id DESC');
     res.json(result.rows);
@@ -16,7 +14,7 @@ router.get('/users', verifyToken, verifyAdmin, async (req, res) => {
 });
 
 // GET user by ID
-router.get('/users/:id', verifyToken, verifyAdmin, async (req, res) => {
+router.get('/users/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const result = await db.query('SELECT * FROM users WHERE id=$1', [id]);
@@ -28,7 +26,7 @@ router.get('/users/:id', verifyToken, verifyAdmin, async (req, res) => {
 });
 
 // DELETE user
-router.delete('/users/:id', verifyToken, verifyAdmin, async (req, res) => {
+router.delete('/users/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const result = await db.query('DELETE FROM users WHERE id=$1 RETURNING *', [id]);
@@ -39,8 +37,8 @@ router.delete('/users/:id', verifyToken, verifyAdmin, async (req, res) => {
   }
 });
 
-// GET all bookings (admin)
-router.get('/bookings', verifyToken, verifyAdmin, async (req, res) => {
+// GET all bookings
+router.get('/bookings', async (req, res) => {
   try {
     const result = await db.query('SELECT * FROM bookings ORDER BY id DESC');
     res.json(result.rows);
@@ -49,8 +47,8 @@ router.get('/bookings', verifyToken, verifyAdmin, async (req, res) => {
   }
 });
 
-// DELETE booking (admin)
-router.delete('/bookings/:id', verifyToken, verifyAdmin, async (req, res) => {
+// DELETE booking
+router.delete('/bookings/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const result = await db.query('DELETE FROM bookings WHERE id=$1 RETURNING *', [id]);
