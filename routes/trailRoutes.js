@@ -1,49 +1,78 @@
-//routes/trailRoutes.js:
+// routes/trailRoutes.js
 import express from 'express';
-import Trail from '../models/trailModel.js';
-import trailController from '../controllers/trailController.js';
-
+import db from '../config/db.js'; // make sure this path matches your project
 
 const router = express.Router();
 
-// Route to get all trails, grouped by area
-router.get('/trails', trailController.getTrailsByArea);
-
-
-// Route to get a single trail by ID
-// router.get('/trails/:id', trailController.getTrailById);
-
-
-router.get('/trails/:id', async (req, res) => {
-  const id = req.params.id;
+// GET /api/trails  -> returns up to 100 trails (adjust LIMIT as needed)
+router.get('/', async (req, res) => {
   try {
-    const trail = await Trail.getById(id);
-    if (!trail) return res.status(404).json({ message: 'Trail not found' });
-    res.json(trail);
+    const result = await db.query('SELECT * FROM trails ORDER BY id DESC LIMIT 100');
+    return res.json(result.rows);
   } catch (err) {
-    res.status(500).json({ message: 'Server error' });
+    console.error('Error fetching trails:', err);
+    return res.status(500).json({ error: 'Failed to fetch trails' });
   }
 });
 
-// Route to get trails by area ID
-router.get('/areas/:areaId/trails', async (req, res) => {
-  const areaId = req.params.areaId;
-  const [trails] = await db.query('SELECT * FROM trails WHERE area_id = ?', [areaId]);
-  res.json(trails);
+// GET /api/trails/:id
+router.get('/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await db.query('SELECT * FROM trails WHERE id = $1', [id]);
+    if (!result.rows.length) return res.status(404).json({ message: 'Trail not found' });
+    return res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error fetching trail by id:', err);
+    return res.status(500).json({ error: 'Failed to fetch trail' });
+  }
 });
 
-// routes/trailRoutes.js - Add this route
-router.get('/areas', async (req, res) => {
+// POST /api/trails
+router.post('/', async (req, res) => {
+  const { name, location, difficulty, distance, description } = req.body;
   try {
-    // Query to get all areas from the database
-    const [areas] = await db.query('SELECT * FROM areas ORDER BY name');
-    res.json(areas);
+    const result = await db.query(
+      `INSERT INTO trails (name, location, difficulty, distance, description)
+       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [name, location, difficulty, distance, description]
+    );
+    return res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error('Error fetching areas:', err);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Error creating trail:', err);
+    return res.status(500).json({ error: 'Failed to create trail' });
+  }
+});
+
+// PUT /api/trails/:id
+router.put('/:id', async (req, res) => {
+  const { id } = req.params;
+  const { name, location, difficulty, distance, description } = req.body;
+  try {
+    const result = await db.query(
+      `UPDATE trails SET name=$1, location=$2, difficulty=$3, distance=$4, description=$5
+       WHERE id=$6 RETURNING *`,
+      [name, location, difficulty, distance, description, id]
+    );
+    if (!result.rows.length) return res.status(404).json({ message: 'Trail not found' });
+    return res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error updating trail:', err);
+    return res.status(500).json({ error: 'Failed to update trail' });
+  }
+});
+
+// DELETE /api/trails/:id
+router.delete('/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await db.query('DELETE FROM trails WHERE id = $1 RETURNING *', [id]);
+    if (!result.rows.length) return res.status(404).json({ message: 'Trail not found' });
+    return res.json({ message: 'Deleted', trail: result.rows[0] });
+  } catch (err) {
+    console.error('Error deleting trail:', err);
+    return res.status(500).json({ error: 'Failed to delete trail' });
   }
 });
 
 export default router;
-
-
