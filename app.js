@@ -22,7 +22,7 @@ const app = express();
 
 // Middleware
 app.use(express.json());
-app.use(cors({ origin: 'https://into-the-land.netlify.app/' }))
+app.use(cors({ origin: 'https://into-the-land.netlify.app' }))
 
 // Serve static files (images)
 app.use('/images', express.static(path.join(__dirname, 'public', 'images')));
