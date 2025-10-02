@@ -1,12 +1,10 @@
 import express from 'express';
 import db from '../config/db.js';
-import verifyToken from '../middleware/verifyToken.js';
-import verifyAdmin from '../middleware/verifyAdmin.js';
 
 const router = express.Router();
 
-// GET all payments (admin only)
-router.get('/', verifyToken, verifyAdmin, async (req, res) => {
+// GET all payments
+router.get('/', async (req, res) => {
   try {
     const result = await db.query('SELECT * FROM payments ORDER BY id DESC');
     res.json(result.rows);
@@ -16,7 +14,7 @@ router.get('/', verifyToken, verifyAdmin, async (req, res) => {
 });
 
 // GET payment by ID
-router.get('/:id', verifyToken, async (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const result = await db.query('SELECT * FROM payments WHERE id=$1', [id]);
@@ -28,14 +26,13 @@ router.get('/:id', verifyToken, async (req, res) => {
 });
 
 // POST new payment
-router.post('/', verifyToken, async (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const { booking_id, amount, payment_method, status } = req.body;
 
     const result = await db.query(
       `INSERT INTO payments (booking_id, amount, payment_method, status)
-       VALUES ($1, $2, $3, $4)
-       RETURNING *`,
+       VALUES ($1, $2, $3, $4) RETURNING *`,
       [booking_id, amount, payment_method, status]
     );
 
@@ -46,7 +43,7 @@ router.post('/', verifyToken, async (req, res) => {
 });
 
 // UPDATE payment
-router.put('/:id', verifyToken, async (req, res) => {
+router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { booking_id, amount, payment_method, status } = req.body;
@@ -66,7 +63,7 @@ router.put('/:id', verifyToken, async (req, res) => {
 });
 
 // DELETE payment
-router.delete('/:id', verifyToken, async (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const result = await db.query('DELETE FROM payments WHERE id=$1 RETURNING *', [id]);
