@@ -8,7 +8,7 @@ const db = new Pool({
   password: process.env.DB_PASS,
   database: process.env.DB_NAME,
   port: process.env.DB_PORT || 5432,
-  ssl: process.env.DB_SSL === 'true',
+  ssl: { rejectUnauthorized: false },  // fix for Render + Supabase
 });
 
 db.connect((err) => {
