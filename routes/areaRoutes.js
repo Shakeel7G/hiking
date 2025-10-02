@@ -1,7 +1,5 @@
 import express from 'express';
 import db from '../config/db.js';
-import verifyToken from '../middleware/verifyToken.js';
-import verifyAdmin from '../middleware/verifyAdmin.js';
 
 const router = express.Router();
 
@@ -27,8 +25,8 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// POST new area (admin only)
-router.post('/', verifyToken, verifyAdmin, async (req, res) => {
+// POST new area
+router.post('/', async (req, res) => {
   try {
     const { name, description } = req.body;
     const result = await db.query(
@@ -41,8 +39,8 @@ router.post('/', verifyToken, verifyAdmin, async (req, res) => {
   }
 });
 
-// UPDATE area (admin only)
-router.put('/:id', verifyToken, verifyAdmin, async (req, res) => {
+// UPDATE area
+router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { name, description } = req.body;
@@ -59,8 +57,8 @@ router.put('/:id', verifyToken, verifyAdmin, async (req, res) => {
   }
 });
 
-// DELETE area (admin only)
-router.delete('/:id', verifyToken, verifyAdmin, async (req, res) => {
+// DELETE area
+router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const result = await db.query('DELETE FROM areas WHERE id=$1 RETURNING *', [id]);
