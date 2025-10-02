@@ -4,7 +4,7 @@ import db from '../config/db.js';
 
 const router = express.Router();
 
-router.get('/bookings', verifyAdmin, async (req, res) => {
+router.get('/', verifyAdmin, async (req, res) => {
   try {
     const [rows] = await db.query('SELECT * FROM bookings');
     res.json(rows);
