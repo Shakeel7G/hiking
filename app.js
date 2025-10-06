@@ -12,6 +12,7 @@ import authRoutes from './routes/auth.js';
 import adminRoutes from './routes/admin.js';
 import bookingsRoutes from './routes/bookings.js';
 import paymentRoutes from './routes/payments.js';
+import areaRoutes from './routes/areaRoutes.js';
 
 dotenv.config();
 
@@ -49,6 +50,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/bookings', bookingsRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/areas', areaRoutes);
 
 // 404 fallback
 app.use((req, res) => res.status(404).json({ message: "Route not found" }));
