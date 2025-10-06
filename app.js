@@ -23,7 +23,7 @@ const app = express();
 
 // Middleware
 app.use(express.json());
-app.use(cors({ origin: 'https://into-the-land.vercel.app/' })); // remove trailing slash
+app.use(cors({ origin: 'https://into-the-land.vercel.app' })); // remove trailing slash
 
 // Serve static files
 app.use('/images', express.static(path.join(__dirname, 'public', 'images')));
