@@ -46,7 +46,7 @@ app.get('/test-db', async (req, res) => {
 // API Routes
 app.use('/api/trails', trailRoutes);
 app.use('/api/hikes', hikesRoutes);
-app.use('/api/auth', authRoutes);
+app.use('/api', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/bookings', bookingsRoutes);
 app.use('/api/payments', paymentRoutes);
