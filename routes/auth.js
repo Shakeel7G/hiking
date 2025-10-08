@@ -6,35 +6,34 @@ import jwt from "jsonwebtoken";
 
 const router = express.Router();
 
-// --- REGISTER USER ---
+// Register
 router.post("/register", async (req, res) => {
   try {
     const { name, email, password } = req.body;
-
     if (!name || !email || !password) {
-      return res.status(400).json({ message: "Name, email, and password are required." });
+      return res.status(400).json({ message: "Name, email and password are required." });
     }
 
-    // Check if user already exists
-    const existing = await db.query("SELECT id FROM users WHERE email = $1", [email]);
-    if (existing.rows.length > 0) {
+    // Check existing
+    const exists = await db.query("SELECT id FROM users WHERE email = $1", [email]);
+    if (exists.rows.length > 0) {
       return res.status(400).json({ message: "Email already registered." });
     }
 
-    // Hash password securely
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // Hash password
+    const hashed = await bcrypt.hash(password, 10);
 
-    // Insert new user into DB
+    // Insert user and return id/name/email
     const result = await db.query(
       `INSERT INTO users (name, email, password)
        VALUES ($1, $2, $3)
        RETURNING id, name, email`,
-      [name, email, hashedPassword]
+      [name, email, hashed]
     );
 
     const newUser = result.rows[0];
 
-    // Generate JWT token
+    // Create JWT
     const token = jwt.sign(
       { userId: newUser.id, email: newUser.email },
       process.env.JWT_SECRET,
@@ -48,68 +47,48 @@ router.post("/register", async (req, res) => {
     });
   } catch (err) {
     console.error("Registration error:", err);
-    res.status(500).json({ message: "Server error during registration." });
+    return res.status(500).json({ message: "Server error during registration." });
   }
 });
 
-// --- LOGIN USER ---
+// Login
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ message: "Email and password required." });
 
-    if (!email || !password) {
-      return res.status(400).json({ message: "Email and password are required." });
-    }
-
-    // Get user from DB
     const result = await db.query("SELECT id, name, email, password FROM users WHERE email = $1", [email]);
-    if (result.rows.length === 0) {
-      return res.status(400).json({ message: "Invalid credentials." });
-    }
+    if (result.rows.length === 0) return res.status(400).json({ message: "Invalid credentials." });
 
     const user = result.rows[0];
+    const ok = await bcrypt.compare(password, user.password);
+    if (!ok) return res.status(400).json({ message: "Invalid credentials." });
 
-    // Compare password
-    const match = await bcrypt.compare(password, user.password);
-    if (!match) {
-      return res.status(400).json({ message: "Invalid credentials." });
-    }
-
-    // Generate JWT
     const token = jwt.sign(
       { userId: user.id, email: user.email },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
 
-    // Return user (without password)
+    // Do not return password
     delete user.password;
-
-    return res.json({
-      message: "Login successful.",
-      user,
-      token,
-    });
+    return res.json({ message: "Login successful.", user, token });
   } catch (err) {
     console.error("Login error:", err);
-    res.status(500).json({ message: "Server error during login." });
+    return res.status(500).json({ message: "Server error during login." });
   }
 });
 
-// --- VERIFY TOKEN / USER SESSION ---
-router.get("/verify", async (req, res) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith("Bearer ")) {
-    return res.status(401).json({ message: "No token provided." });
-  }
-
-  const token = authHeader.split(" ")[1];
+// Optional: quick token verify endpoint
+router.get("/verify", (req, res) => {
+  const header = req.headers.authorization;
+  if (!header || !header.startsWith("Bearer ")) return res.status(401).json({ message: "No token provided" });
+  const token = header.split(" ")[1];
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    res.json({ valid: true, user: decoded });
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    return res.json({ valid: true, user: payload });
   } catch (err) {
-    console.error("Token verification error:", err);
-    res.status(401).json({ message: "Invalid or expired token." });
+    return res.status(401).json({ valid: false, message: "Invalid/expired token" });
   }
 });
 
