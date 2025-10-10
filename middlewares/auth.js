@@ -1,33 +1,16 @@
+import jwt from "jsonwebtoken";
 
-import jwt from 'jsonwebtoken';
+const SECRET_KEY = process.env.JWT_SECRET || into_the_land_secret";
 
-export function isAuthenticated(req, res, next) {
-  // Get token from Authorization header
-  const authHeader = req.headers.authorization;
+export default function authenticateToken(req, res, next) {
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1]; // Bearer <token>
 
-  if (!authHeader) {
-    return res.status(401).json({ message: 'No token provided' });
-  }
+  if (!token) return res.status(401).json({ message: "No token provided" });
 
-  // Format is usually: "Bearer tokenvalue"
-  const token = authHeader.split(' ')[1];
-
-  if (!token) {
-    return res.status(401).json({ message: 'Token missing' });
-  }
-
-  try {
-    // Verify token with secret key
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    // Save user info from token into request (useful later)
-    req.user = decoded;
-
-    // Continue to next middleware/route
+  jwt.verify(token, SECRET_KEY, (err, user) => {
+    if (err) return res.status(403).json({ message: "Invalid token" });
+    req.user = user; // user.id and user.role
     next();
-  } catch (err) {
-    return res.status(403).json({ message: 'Invalid or expired token' });
-  }
+  });
 }
-
-export default isAuthenticated;
