@@ -1,23 +1,14 @@
 import express from "express";
-import db from "../config/db.js"; // Postgres client (Supabase or pg)
+import db from "../config/db.js";
 import authenticateToken from "../middlewares/auth.js";
 
 const router = express.Router();
 
-// Create a booking
+// Create booking
 router.post("/", authenticateToken, async (req, res) => {
   try {
     const user_id = req.user.id;
-    const {
-      trail_id,
-      hike_date,
-      hike_time,
-      adults,
-      kids = 0,
-      hike_and_bite = 0,
-      photography_option = null,
-      total_price
-    } = req.body;
+    const { trail_id, hike_date, hike_time, adults, kids = 0, hike_and_bite = 0, photography_option = null, total_price } = req.body;
 
     if (!trail_id || !hike_date || !hike_time || !adults || !total_price) {
       return res.status(400).json({ message: "Missing required fields" });
@@ -25,24 +16,23 @@ router.post("/", authenticateToken, async (req, res) => {
 
     const result = await db.query(
       `INSERT INTO bookings
-      (user_id, trail_id, hike_date, hike_time, adults, kids, hike_and_bite, photography_option, total_price, status)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'pending')
-      RETURNING *`,
+       (user_id, trail_id, hike_date, hike_time, adults, kids, hike_and_bite, photography_option, total_price, status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'pending')
+       RETURNING *`,
       [user_id, trail_id, hike_date, hike_time, adults, kids, hike_and_bite, photography_option, total_price]
     );
 
     res.status(201).json({ message: "Booking created successfully", booking: result.rows[0] });
   } catch (err) {
-    console.error("Booking creation error:", err);
+    console.error(err);
     res.status(500).json({ message: "Error creating booking", error: err.message });
   }
 });
 
-// Get current user's bookings
+// Get user bookings
 router.get("/my", authenticateToken, async (req, res) => {
   try {
     const user_id = req.user.id;
-
     const result = await db.query(
       `SELECT b.*, t.title AS trail
        FROM bookings b
@@ -51,7 +41,6 @@ router.get("/my", authenticateToken, async (req, res) => {
        ORDER BY b.hike_date DESC`,
       [user_id]
     );
-
     res.json(result.rows);
   } catch (err) {
     console.error(err);
@@ -59,7 +48,7 @@ router.get("/my", authenticateToken, async (req, res) => {
   }
 });
 
-// Get a single booking (for mock payment)
+// Get single booking
 router.get("/:id", authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -69,7 +58,7 @@ router.get("/:id", authenticateToken, async (req, res) => {
       `SELECT b.*, t.title AS trail
        FROM bookings b
        JOIN trails t ON b.trail_id = t.id
-       WHERE b.id = $1 AND b.user_id = $2`,
+       WHERE b.id=$1 AND b.user_id=$2`,
       [id, user_id]
     );
 
@@ -81,7 +70,7 @@ router.get("/:id", authenticateToken, async (req, res) => {
   }
 });
 
-// Mock payment (update status to 'paid')
+// Mock payment
 router.put("/:id/pay", authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
