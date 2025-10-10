@@ -1,79 +1,58 @@
-
+// routes/payments.js
 import express from "express";
 import db from "../config/db.js";
 import authenticateToken from "../middlewares/auth.js";
 
 const router = express.Router();
 
-/**
- * ✅ Create payment for a booking
- * This route should be called from Pay.vue after a booking is made.
- */
+// ✅ Make a mock payment
 router.post("/", authenticateToken, async (req, res) => {
   try {
-    const { booking_id, amount, payment_method, payment_status } = req.body;
+    const { booking_id, payment_method, amount } = req.body;
     const user_id = req.user.id;
 
-    if (!booking_id || !amount || !payment_method) {
-      return res.status(400).json({ message: "Missing payment details" });
+    if (!booking_id || !payment_method || amount === undefined) {
+      return res.status(400).json({ message: "Missing payment info" });
     }
 
-    // Check that the booking exists and belongs to this user
-    const bookingCheck = await db.query(
-      "SELECT * FROM bookings WHERE id = $1 AND user_id = $2",
-      [booking_id, user_id]
-    );
+    // Check if booking exists
+    const booking = await db.query(`SELECT * FROM bookings WHERE id = $1 AND user_id = $2`, [booking_id, user_id]);
+    if (!booking.rows.length) return res.status(404).json({ message: "Booking not found" });
 
-    if (bookingCheck.rows.length === 0) {
-      return res.status(404).json({ message: "Booking not found or not yours" });
-    }
-
-    // Insert payment record
-    const paymentResult = await db.query(
+    // Insert mock payment
+    const payment = await db.query(
       `INSERT INTO payments (booking_id, user_id, amount, payment_method, payment_status)
-       VALUES ($1, $2, $3, $4, $5)
+       VALUES ($1, $2, $3, $4, 'completed')
        RETURNING *`,
-      [booking_id, user_id, amount, payment_method, payment_status || "completed"]
+      [booking_id, user_id, amount, payment_method]
     );
 
-    // Update the booking status to "paid"
-    await db.query(
-      `UPDATE bookings
-       SET status = 'paid'
-       WHERE id = $1`,
-      [booking_id]
-    );
+    // Update booking to paid
+    await db.query(`UPDATE bookings SET status = 'paid' WHERE id = $1`, [booking_id]);
 
-    res.status(201).json({
-      message: "Payment processed successfully",
-      payment: paymentResult.rows[0],
-    });
+    res.status(201).json({ message: "Payment successful", payment: payment.rows[0] });
   } catch (err) {
-    console.error("Payment processing error:", err);
+    console.error(err);
     res.status(500).json({ message: "Error processing payment", error: err.message });
   }
 });
 
-/**
- * ✅ Get all payments for a logged-in user
- */
-router.get("/my-payments", authenticateToken, async (req, res) => {
+// ✅ Get user's payments
+router.get("/my", authenticateToken, async (req, res) => {
   try {
     const user_id = req.user.id;
-
     const result = await db.query(
-      `SELECT p.*, b.hike_date, b.total_price, t.title AS trail_title
+      `SELECT p.*, b.trail_id, t.title AS trail
        FROM payments p
        JOIN bookings b ON p.booking_id = b.id
        JOIN trails t ON b.trail_id = t.id
        WHERE p.user_id = $1
-       ORDER BY p.created_at DESC`,
+       ORDER BY p.id DESC`,
       [user_id]
     );
-
     res.json(result.rows);
   } catch (err) {
-    console.error("Error fetching payments:", err);
+    console.error(err);
     res.status(500).json({ message: "Error fetching payments", error: err.message });
   }
 });
