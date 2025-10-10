@@ -1,31 +1,41 @@
 // routes/bookings.js
 import express from "express";
 import db from "../config/db.js";
-import authenticateToken from '../middlewares/auth.js';
+import authenticateToken from "../middlewares/auth.js";
 
 const router = express.Router();
 
-// ✅ Create a new booking
+// ✅ Create booking
 router.post("/", authenticateToken, async (req, res) => {
   try {
-    const { trail_id, hike_date, num_hikers, total_price } = req.body;
     const user_id = req.user.id;
+    const {
+      trail_id,
+      hike_date,
+      hike_time,
+      adults,
+      kids = 0,
+      hike_and_bite = 0,
+      photography_option = "",
+      total_price
+    } = req.body;
 
-    if (!trail_id || !hike_date || !num_hikers || !total_price) {
-      return res.status(400).json({ message: "Missing booking information" });
+    // Validate required fields
+    if (!trail_id || !hike_date || !hike_time || !adults || !total_price) {
+      return res.status(400).json({ message: "Missing required booking details" });
     }
 
     const result = await db.query(
-      `INSERT INTO bookings (user_id, trail_id, hike_date, num_hikers, total_price, status)
-       VALUES ($1, $2, $3, $4, $5, 'pending')
-       RETURNING *`,
-      [user_id, trail_id, hike_date, num_hikers, total_price]
+      `INSERT INTO bookings 
+        (user_id, trail_id, hike_date, hike_time, adults, kids, hike_and_bite, photography_option, total_price, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending')
+       RETURNING id`,
+      [user_id, trail_id, hike_date, hike_time, adults, kids, hike_and_bite, photography_option, total_price]
     );
 
-    const newBooking = result.rows[0];
     res.status(201).json({
       message: "Booking created successfully",
-      booking: newBooking,
+      booking_id: result.rows[0].id
     });
   } catch (err) {
     console.error("Booking creation error:", err);
@@ -33,7 +43,7 @@ router.post("/", authenticateToken, async (req, res) => {
   }
 });
 
-// ✅ Get user’s bookings
+// ✅ Get user's bookings
 router.get("/my-bookings", authenticateToken, async (req, res) => {
   try {
     const user_id = req.user.id;
@@ -43,7 +53,7 @@ router.get("/my-bookings", authenticateToken, async (req, res) => {
        FROM bookings b
        JOIN trails t ON b.trail_id = t.id
        WHERE b.user_id = $1
-       ORDER BY b.created_at DESC`,
+       ORDER BY b.hike_date DESC`,
       [user_id]
     );
 
@@ -54,7 +64,7 @@ router.get("/my-bookings", authenticateToken, async (req, res) => {
   }
 });
 
-// ✅ Get single booking (used by Pay.vue)
+// ✅ Get single booking (for payments)
 router.get("/:id", authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -79,7 +89,7 @@ router.get("/:id", authenticateToken, async (req, res) => {
   }
 });
 
-// ✅ Update booking status (optional - after payment)
+// ✅ Update booking status after payment
 router.put("/:id/status", authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -95,7 +105,7 @@ router.put("/:id/status", authenticateToken, async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ message: "Booking not found or not yours" });
+      return res.status(404).json({ message: "Booking not found or not owned by user" });
     }
 
     res.json({ message: "Booking status updated", booking: result.rows[0] });
